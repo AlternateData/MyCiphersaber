@@ -4,8 +4,9 @@
  */
 #include <stdio.h>
 #include <stdlib.h>
-#define SBOX_LEN 256
-char sbox[SBOX_LEN] = {0};
+#define BUFF_LEN 256
+char sbox[BUFF_LEN] = {0};
+char key[BUFF_LEN] = {0};
 
 int main(int argc, char *argv[]){
   if(argc != 3){
@@ -33,10 +34,25 @@ int main(int argc, char *argv[]){
     exit(1);
   }
 
+  /* init key */
+  char c;
+  int i = 0;
+  while((c = fgetc(key_file)) != EOF && i < BUFF_LEN){
+    key[i] = c;
+    i++;
+  }
+  for(int j =i; i< BUFF_LEN; i++){
+    key[j] = key[j % i];
+  }
+
+  //printf("%s\n", key);
+  
   /* init S-Box */
-  for(int i = 0; i < SBOX_LEN; i++){
+  for(int i = 0; i < BUFF_LEN; i++){
     sbox[i] = i;
   } 
+
+
 
   fclose(ptext_file); 
   fclose(key_file); 
