@@ -6,6 +6,7 @@
 #include <stdlib.h>
 #include <stdint.h>
 #include <time.h>
+#include <string.h>
 
 
 #define ARC4_KEY_LEN 256
@@ -14,7 +15,7 @@
 
 
 /* utility mehthods */
-void swap(uint8_t * lst, int i, int j){
+void swap(uint8_t * lst, uint8_t i, uint8_t j){
   uint8_t tmp = lst[i];
   lst[i] = lst[j];
   lst[j] = tmp;
@@ -36,51 +37,54 @@ int streq(const char* lhs, const char* rhs){
 
 
 /* cryptographic functions */
-void init_sbox(uint8_t *sbox, const uint8_t * key){
+void init_sbox(uint8_t *sbox, const char * key){
   for(int i = 0; i < ARC4_KEY_LEN; i++){
     sbox[i] = i;
   } 
 
-  unsigned  char j = 0;
+  uint8_t j = 0;
   for(int i = 0; i < ARC4_KEY_LEN; i++){
     j = (j + sbox[i] + key[i]);
     swap(sbox, i, j);
   }
 }
 
-void init_key(FILE * key_file, uint8_t * iv, uint8_t * key){
+void init_key(char * key, char * iv){
 
-  /* load key from file into buffer*/
-  char c;
+  /*compute the length of the key */
   int i = 0;
-  for(;i < IV_LEN; i++){
-    key[i]  = iv[i];
+  while(key[i] != '\n')
+    i++;
+
+  printf("%s(%i)\n", key, i);
+
+  /* load iv into buffer*/
+  for(int j = i; j - i  < IV_LEN; j++){
+    key[j]  = iv[j - i];
   }
 
-  while((c = fgetc(key_file)) != EOF && i < ARC4_KEY_LEN){
-    key[i] = c;
-    i++;
-  }
-  
+  printf("Key: %s\n",key );
+
   /* fill up the remaining space with the key */
+  i+=IV_LEN;
   for(int j = i; j < ARC4_KEY_LEN; j++){
     key[j] = key[j % i];
   }
-
-  printf("%s\n", key);
-
+  printf("Final Key: %s\n", key);
 }
 
-void arcfour(char * in, int in_len, const uint8_t * key){
+void arcfour(char * in, int in_len, const char * key){
   uint8_t sbox[ARC4_KEY_LEN] = {0};
   init_sbox(sbox, key);
   uint8_t i = 0;
   uint8_t j = 0;
+  uint8_t t = 0;
   for(int k = 0; k < in_len; k++){
     i++; 
     j += sbox[i];
     swap(sbox, i, j);
-    in[k] = in[k] ^ sbox[sbox[i] + sbox[j]];
+    t = sbox[i] + sbox[j];
+    in[k] = in[k] ^ sbox[t];
  }
 
 }
@@ -88,10 +92,11 @@ void arcfour(char * in, int in_len, const uint8_t * key){
 
 
 int main(int argc, char *argv[]){
+
   int ret = 0;
   if(argc != 4){
     fprintf(stderr, "Invalid amount of arguments!\n");
-    printf("Usage: %s [encrypt|decrypt] [plaintext] [key]\n", argv[0]);
+    printf("Usage: %s [encrypt|decrypt] [plaintext] [outfile]\n", argv[0]);
     exit(1);
   }
 
@@ -102,27 +107,20 @@ int main(int argc, char *argv[]){
     exit(1);
   }
 
-  FILE * key_file   =  fopen(argv[3], "rb"); 
-  if(key_file == NULL){
-    fprintf(stderr, "Fatal Error: Failed to open file %s\n", argv[3]);
-    fclose(key_file); 
-    fclose(ptext_file);
-    exit(1);
-  }
 
-  FILE * out_file   =  fopen("out.cs", "wb");
+  FILE * out_file   =  fopen(argv[3], "wb");
   if(out_file == NULL){
     fprintf(stderr, "Fatal Error: Failed to open file out.cs\n");
     fclose(ptext_file);
     fclose(out_file); 
-    fclose(key_file);
     exit(1);
   }
 
   /* read in ptext_file into buffer of appropiate size */
   fseek(ptext_file, 0, SEEK_END);
   long len = ftell(ptext_file);
-  fseek(ptext_file, 0, SEEK_SET);
+  printf("ptext_file has: %i\n", (int)len);
+  rewind(ptext_file);
   char * msg = malloc(sizeof(char)*len);
 
   if(msg == NULL){
@@ -132,64 +130,66 @@ int main(int argc, char *argv[]){
     goto cleanup;
   }
 
-  fread(msg, len, 1, ptext_file);
 
-  /* this will hold the cipher key */
-  uint8_t key[ARC4_KEY_LEN] = {0};
   /* this will hold the initialisation vector */
-  uint8_t iv[IV_LEN] = {0};
+  char iv[IV_LEN] = {0};
 
   if(streq(argv[1], "encrypt")){
 
-    printf("Encrypting!\n");
 
+    printf("\n");
     /* seed prng used for initialisation vector */
     srand(time(NULL));
 
     /* create initialisation vector  */
     for(int i = 0; i < IV_LEN; i++) {
       iv[i] = rand() % ARC4_KEY_LEN;
+      printf("%i (%c) ", iv[i], iv[i]);
     }
+    printf("\n");
+
+    int written = fwrite(iv, 1, IV_LEN, out_file);
+    printf("Bytes written: %i\n", written);
+    printf("%s\n", iv);
+    //goto cleanup;
+
   } else if(streq(argv[1], "decrypt")){
 
     printf("Decrypting!\n");
     /* decrease the length by the space take up by iv*/
-    msg += IV_LEN;
-    len -= IV_LEN;
+    len  = len -  IV_LEN;
     if(len < 1){
       fprintf(stderr, "Fatal Error: After reading in iv, no message left. Ciphertext is ill formated.\n");
       ret = 1;
       goto cleanup;
     }
-    fseek(ptext_file, 0, SEEK_SET);
     
     /* fetch initialisation vector by reading the first 10 bytes into key */
-    char c = 0;
     for(int i = 0; i < IV_LEN; i++){
-      c = fgetc(ptext_file);
-      if(c == EOF){
-	fprintf(stderr, "Fatal Error: Message too short - Could not read initialisation Vector\n");
-        ret = 1;
-	goto cleanup;
-      }
-      iv[i] = c;
+      iv[i] = fgetc(ptext_file);
+      printf("%i (%c) ", iv[i], iv[i]);
     }
+    printf("\n");
   } else {
     fprintf(stderr, "Fatal Error: Invalid option %s\n", argv[1]);
   }
 
+  /* this will hold the cipher key */
+  char key[ARC4_KEY_LEN] = {0};
+  fgets(key, ARC4_KEY_LEN, stdin);
+  init_key(key, iv);
   /* write en/decrypted message back into msg and onto disk*/
-  init_key(key_file, iv, key);
+  fread(msg, len, 1, ptext_file);
   arcfour(msg, len, key);
-  fwrite(msg, 1, len, out_file);
-
+  int written = fwrite(msg, 1, len, out_file);
+  printf("Bytes written: %i\n", written);
   
 
   //printf("%i",streq("aldkfjlaj\0", "aldjfladjff\0"));
   
  cleanup:
   fclose(ptext_file); 
-  fclose(key_file); 
+  //fclose(key_file); 
   fclose(out_file); 
   free(msg);
    
