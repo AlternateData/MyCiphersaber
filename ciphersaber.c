@@ -5,6 +5,7 @@ char* gen_key(const char *secret,int secretlen, const char *iv){
     return NULL;
   }
 
+  /* shorten key if too little space for initialisation vector */
   if(secretlen > ARC4_KEY_LEN){
     secretlen = ARC4_KEY_LEN - IV_LEN;
   }
@@ -31,6 +32,7 @@ void init_state(state *  state, const char *key, int niter){
     state->sbox[i] = i;
   }
 
+  /* key scheduling */
   uint8_t j = 0;
   for(int k = 0; k  < niter; k++){
     for(int i = 0; i < ARC4_KEY_LEN; i++){
@@ -46,15 +48,19 @@ char* gen_bytes(state*state, int n){
     return NULL;
   }
 
-  uint8_t tmp = 0;
+  if(!state){
+    return NULL;
+  }
+
+  uint8_t index = 0;
   uint8_t *sbox = state->sbox;
   for(int k = 0; k < n; k++){
     state->i++;
     state->j += sbox[state->i];
     swap(sbox, state->i, state->j);
 
-    tmp = sbox[state->i] + sbox[state->j];
-    bytes[k] = sbox[tmp];
+    index = sbox[state->i] + sbox[state->j];
+    bytes[k] = sbox[index];
   }
   return bytes;
 }
@@ -84,7 +90,7 @@ char* encrypt(const char *msg, size_t msglen,const char* secret, int niter){
 
   /* load initialisation vector into cipher */
   memcpy(cipher, iv, IV_LEN);
-  /* copy the message directly after the instruction vector into complete_cipher */
+  /* copy the message directly after the instruction vector into cipher */
   memcpy(cipher+IV_LEN, arc4cipher, msglen);
 
   free(key);
@@ -94,7 +100,7 @@ char* encrypt(const char *msg, size_t msglen,const char* secret, int niter){
 
 char* decrypt(const char *msg, size_t msglen, const char* secret, int niter){
   char iv[IV_LEN] = {0};
-  char* cipher = malloc(sizeof(char)* msglen - sizeof(char)*IV_LEN);
+  char* cipher = malloc(sizeof(char)* (msglen - IV_LEN));
   if(!cipher){
     return NULL;
   }
@@ -105,7 +111,6 @@ char* decrypt(const char *msg, size_t msglen, const char* secret, int niter){
   cipher = arc4(msg + IV_LEN, msglen,key, niter);
 
   free(key);
-  free(cipher);
   return cipher;
 }
 

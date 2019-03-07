@@ -1,11 +1,14 @@
+#include <stdlib.h>
+#include <string.h>
+#include <time.h>
+
 #define ARC4_KEY_LEN 256
 #define IV_LEN 10
 #define C1_KEY_ITER 1
 #define C2_KEY_ITER 20
 
-#include <stdlib.h>
-#include <string.h>
-#include <time.h>
+#define C1_FILE_EXT ".cs"
+#define C2_FILE_EXT ".cs2"
 
 typedef unsigned char uint8_t;
 
