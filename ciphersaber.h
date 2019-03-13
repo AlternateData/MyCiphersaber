@@ -30,10 +30,4 @@ char* encrypt(const char *msg, size_t msglen, const char* secret, int niter);
 
 char* arc4(const char *msg, size_t msglen, const char * key, int niter);
 
-void swap(uint8_t * lst, uint8_t i, uint8_t j){
-  uint8_t tmp = lst[i];
-  lst[i] = lst[j];
-  lst[j] = tmp;
-}
-
-
+void swap(uint8_t * lst, uint8_t i, uint8_t j);
