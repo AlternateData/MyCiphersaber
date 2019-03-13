@@ -1,5 +1,11 @@
 #include "ciphersaber.h"
 
+void swap(uint8_t * lst, uint8_t i, uint8_t j){
+  uint8_t tmp = lst[i];
+  lst[i] = lst[j];
+  lst[j] = tmp;
+}
+
 char* gen_key(const char *secret,int secretlen, const char *iv){
   if(!secret || !iv){
     return NULL;
@@ -10,7 +16,7 @@ char* gen_key(const char *secret,int secretlen, const char *iv){
     secretlen = ARC4_KEY_LEN - IV_LEN;
   }
 
-  char* key = malloc(sizeof(char) * ARC4_KEY_LEN);
+  char* key = malloc(sizeof(*key) * ARC4_KEY_LEN);
   memcpy(key, secret, secretlen);
   memcpy(key+secretlen, iv, IV_LEN);
   for(int i = secretlen + IV_LEN; i < ARC4_KEY_LEN;i++){
@@ -27,6 +33,7 @@ void init_state(state *  state, const char *key, int niter){
 
   state->i= 0;
   state->j= 0;
+  state->sbox = malloc(sizeof(uint8_t) * ARC4_KEY_LEN);
 
   for(int i = 0; i < ARC4_KEY_LEN;i++){
     state->sbox[i] = i;
@@ -43,7 +50,7 @@ void init_state(state *  state, const char *key, int niter){
 }
 
 char* gen_bytes(state*state, int n){
-  char *bytes = malloc(sizeof(char) * n);
+  char *bytes = malloc(sizeof(*bytes) * n);
   if(!bytes){
     return NULL;
   }
@@ -68,7 +75,7 @@ char* gen_bytes(state*state, int n){
 char* encrypt(const char *msg, size_t msglen,const char* secret, int niter){
 
 
-  char* cipher = malloc(sizeof(char)* (msglen + IV_LEN));
+  char* cipher = malloc(sizeof(*cipher)* (msglen + IV_LEN));
   char iv[IV_LEN] = {0};
   if(!cipher){
     return NULL;
@@ -100,7 +107,7 @@ char* encrypt(const char *msg, size_t msglen,const char* secret, int niter){
 
 char* decrypt(const char *msg, size_t msglen, const char* secret, int niter){
   char iv[IV_LEN] = {0};
-  char* cipher = malloc(sizeof(char)* (msglen - IV_LEN));
+  char* cipher = malloc(sizeof(*cipher)* (msglen - IV_LEN));
   if(!cipher){
     return NULL;
   }
@@ -123,8 +130,7 @@ char* arc4(const char *msg, size_t msglen,const char * key, int niter){
 
   char* cipher = malloc(sizeof(char)* msglen);
   state* state = malloc(sizeof(state));
-  /* setup arc4 key and with that init state */
-
+  /* setup arc4 key and init state for arc4 */
   init_state(state, key, niter);
 
   /* generate random bytes */
