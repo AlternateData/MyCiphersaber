@@ -11,21 +11,17 @@
 
 void  print_help(int code);
 
-
-char * progname = NULL;
-int   niter;
+char* progname = NULL;
+int   niter = C2_KEY_ITER;
 char* infname;
-char  mode;
-char* extension;
+char  mode = ' ';
+char* extension = C2_FILE_EXT;
 
 
 
 int main(int argc, char * argv[]){
   int opt;
 
-  niter   = C2_KEY_ITER;
-  mode    = ' ';
-  extension     = C2_FILE_EXT;
 
   FILE* in    = NULL;
   FILE* out   = NULL;
@@ -60,12 +56,14 @@ int main(int argc, char * argv[]){
 
   if(mode == ' '){
     fprintf(stderr, "[ERROR]: Neither -d nor -e was given as an option. These are essential.\n");
+    fclose(in);
     print_help(EXIT_FAILURE);
   }
 
 
   if(!in){
     fprintf(stderr, "[ERROR]: No file was given to en/decrypt.\n");
+    fclose(in);
     print_help(EXIT_FAILURE);
   }
 
@@ -78,6 +76,7 @@ int main(int argc, char * argv[]){
 
   if(!msg){
     fprintf(stderr, "[ERROR]: Failed to allocate memory for message.\n");
+    fclose(in);
     exit(EXIT_FAILURE);
   }
 
@@ -102,9 +101,9 @@ int main(int argc, char * argv[]){
 
   if(!cipher){
     fprintf(stderr, "[ERROR]: Internal method %s() returned NULL\n", mode=='e' ? "encrypt" : "decrypt");
+    fclose(in);
     exit(EXIT_FAILURE);
   }
-
 
   out = fopen(outfname, "wb");
   if(!out){
