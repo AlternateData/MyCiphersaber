@@ -1,7 +1,0 @@
-ARC4 and Ciphersaber protocals should be seperated
-user secrets (passphrase) is null terminated string
-Fucntions only will ever return null if null is being put into them or malloc did return null.
-This is not at all optimal. A big todo is error/exception handling
-It is the callers job to check that the inputs are valid non null values.
-
-
