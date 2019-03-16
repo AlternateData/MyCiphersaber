@@ -140,6 +140,7 @@ char* arc4(const char *msg, size_t msglen,const char * key, int niter){
     cipher[i] = msg[i] ^ bytes[i];
   }
   
+  free(state->sbox);
   free(state);
   free(bytes);
 
