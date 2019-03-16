@@ -10,6 +10,7 @@
 #define OPT_STR  "edli:"
 
 void  print_help(int code);
+void cleanup_globals();
 
 char* progname = NULL;
 int   niter = C2_KEY_ITER;
@@ -18,13 +19,16 @@ char  mode = ' ';
 char* extension = C2_FILE_EXT;
 
 
+FILE* in     = NULL;
+FILE* out;
+char *msg    = NULL;
+char* cipher = NULL;
+char *outfname = "out.txt";
 
 int main(int argc, char * argv[]){
   int opt;
 
 
-  FILE* in    = NULL;
-  FILE* out   = NULL;
 
   progname = argv[0];
 
@@ -56,14 +60,14 @@ int main(int argc, char * argv[]){
 
   if(mode == ' '){
     fprintf(stderr, "[ERROR]: Neither -d nor -e was given as an option. These are essential.\n");
-    fclose(in);
+    cleanup_globals();
     print_help(EXIT_FAILURE);
   }
 
 
   if(!in){
     fprintf(stderr, "[ERROR]: No file was given to en/decrypt.\n");
-    fclose(in);
+    cleanup_globals();
     print_help(EXIT_FAILURE);
   }
 
@@ -72,24 +76,22 @@ int main(int argc, char * argv[]){
   fseek(in, 0, SEEK_END);
   size_t fsize = ftell(in);
   fseek(in, 0, SEEK_SET);
-  char *msg = malloc(sizeof(char) * fsize);
+  msg = malloc(sizeof(*msg) * fsize);
 
   if(!msg){
     fprintf(stderr, "[ERROR]: Failed to allocate memory for message.\n");
-    fclose(in);
+    cleanup_globals();
     exit(EXIT_FAILURE);
   }
 
   fread(msg, sizeof(char), fsize, in);
 
   char* secret = getpass(PROMPT);
-  char* cipher = NULL;
 
-  char *outfname;
   if(mode=='e'){
     cipher = encrypt(msg, fsize, secret, niter);
 
-    outfname = malloc(sizeof(char) * (strlen(infname) + strlen(extension)));
+    outfname = malloc(sizeof(*outfname) * (strlen(infname) + strlen(extension)));
     strcat(outfname, infname);
     strcat(outfname, extension);
   }else if(mode=='d'){
@@ -100,30 +102,22 @@ int main(int argc, char * argv[]){
   }
 
   if(!cipher){
-    fprintf(stderr, "[ERROR]: Internal method %s() returned NULL\n", mode=='e' ? "encrypt" : "decrypt");
-    fclose(in);
+    fprintf(stderr, "[ERROR]: Internal method %s() returned NULL. This is a bug.\n", mode=='e' ? "encrypt" : "decrypt");
+    cleanup_globals();
     exit(EXIT_FAILURE);
   }
 
   out = fopen(outfname, "wb");
   if(!out){
     fprintf(stderr, "[ERROR]: Could not open output file %s\n", outfname);
+    cleanup_globals();
     exit(EXIT_FAILURE);
   }
 
   fwrite(cipher, 1, fsize, out);
 
-
   /* clean up */
-  fclose(in);
-  fclose(out);
-  free(msg);
-
-  fclose(in);
-  if(cipher){
-    free(cipher);
-  }
-
+  cleanup_globals();
   return EXIT_SUCCESS;
 }
 
@@ -139,4 +133,20 @@ void print_help(int ecode){
   printf("\t-l[egacy]\t\t-enables old vulnerable ciphersaber1 algorithm\n");
 
   exit(ecode);
+}
+
+void cleanup_globals(){
+  if(in)
+    fclose(in);
+  if(out)
+    fclose(out);
+  if(cipher){
+    free(cipher);
+    printf("Freed cipher.\n");
+  }
+  if(msg)
+    free(msg);
+  if(outfname)
+    free(outfname);
+  outfname = NULL;
 }
