@@ -28,8 +28,6 @@ char *outfname = "out.txt";
 int main(int argc, char * argv[]){
   int opt;
 
-
-
   progname = argv[0];
 
   while((opt = getopt(argc, argv, OPT_STR)) != -1){
@@ -86,11 +84,13 @@ int main(int argc, char * argv[]){
 
   fread(msg, sizeof(char), fsize, in);
 
+  /* obtain secret from cmdline */
   char* secret = getpass(PROMPT);
 
   if(mode=='e'){
     cipher = encrypt(msg, fsize, secret, niter);
 
+    /* put together the file name */
     outfname = malloc(sizeof(*outfname) * (strlen(infname) + strlen(extension)));
     strcat(outfname, infname);
     strcat(outfname, extension);
@@ -107,6 +107,7 @@ int main(int argc, char * argv[]){
     exit(EXIT_FAILURE);
   }
 
+  /* write contents of cipher to outfile */
   out = fopen(outfname, "wb");
   if(!out){
     fprintf(stderr, "[ERROR]: Could not open output file %s\n", outfname);
@@ -116,7 +117,11 @@ int main(int argc, char * argv[]){
 
   fwrite(cipher, 1, fsize, out);
 
-  /* clean up */
+  /*  
+   * NOTE: Valgrind reports that memory allocated to cipher definitely is being leaked.
+   * However it is being freed in the call to the following function. 
+   */
+
   cleanup_globals();
   return EXIT_SUCCESS;
 }
@@ -140,10 +145,8 @@ void cleanup_globals(){
     fclose(in);
   if(out)
     fclose(out);
-  if(cipher){
+  if(cipher)
     free(cipher);
-    printf("Freed cipher.\n");
-  }
   if(msg)
     free(msg);
   if(outfname)
